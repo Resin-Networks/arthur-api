@@ -98,7 +98,8 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
     "document_id": "R111-1111-1111",
     "address": "123 Main St, Chicago, IL 60639",
     "expiration_date": "2027-01-01",
-    "issue_date": "2022-01-01"
+    "issue_date": "2022-01-01",
+    "phone": "+13125551234"
   },
 
   "carrier_match_details": {
@@ -138,6 +139,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 | `driver_match_details.address` | string | No | Address on CDL |
 | `driver_match_details.expiration_date` | string | No | Format: `YYYY-MM-DD` |
 | `driver_match_details.issue_date` | string | No | Format: `YYYY-MM-DD` |
+| `driver_match_details.phone` | string | No | Driver's phone number in E.164 format (e.g., `+13125551234`). If provided, Arthur will verify the number is not a VoIP line. |
 | `carrier_match_details` | object | No | Expected carrier info from cab card |
 | `carrier_match_details.organization` | string | No | Carrier/company name |
 | `carrier_match_details.address` | string | No | Carrier address |
