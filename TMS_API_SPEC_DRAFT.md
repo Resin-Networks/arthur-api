@@ -28,13 +28,38 @@ Arthur provides driver identity verification for freight brokerages. This API al
 
 ## Authentication
 
-All requests require a signature header for authenticity verification:
+Both directions (TransportPro → Arthur and Arthur → TransportPro) use HMAC-SHA256 request signing. Each party has its own secret:
+
+| Direction | Secret | Issued by | Header |
+|-----------|--------|-----------|--------|
+| TransportPro → Arthur | `arthur_api_secret` | Arthur | `X-TransportPro-Signature` |
+| Arthur → TransportPro (webhooks) | `transportpro_webhook_secret` | TransportPro | `X-Arthur-Signature` |
+
+#### Signing a request
+
+1. Include a `requested_at` field in the JSON body — an ISO 8601 timestamp of when the request was created (e.g., `"2026-03-23T14:30:00Z"`).
+2. Compute `HMAC-SHA256` of the **raw request body** using the appropriate secret.
+3. Send the hex digest in the appropriate header:
 
 ```
+# TransportPro → Arthur
+X-TransportPro-Signature: sha256=<hmac_hex_digest>
+
+# Arthur → TransportPro (webhooks)
 X-Arthur-Signature: sha256=<hmac_hex_digest>
 ```
 
-Compute `HMAC-SHA256` of the raw request body using the api key provided to us by TransportPro and compare to the signature header.
+#### Verifying a request
+
+1. Recompute the HMAC from the raw body using your secret.
+2. Compare to the signature header (use a constant-time comparison).
+3. Check that `requested_at` is within an acceptable window (we recommend **5 minutes**). Reject stale requests to prevent replay attacks.
+
+#### Key exchange
+
+During onboarding:
+- Arthur issues `arthur_api_secret` to TransportPro (for requests to Arthur's API)
+- TransportPro issues `transportpro_webhook_secret` to Arthur (for webhook deliveries)
 
 ---
 
@@ -54,6 +79,8 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 
 ```json
 {
+  "requested_at": "2026-03-23T12:00:00Z",
+
   "callback_url": "https://your-tms.com/webhooks/arthur",
 
   "reference_id": "your-internal-id-123",
@@ -61,7 +88,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
   "location_match_details": {
     "lat": 41.8781,
     "lng": -87.6298,
-    "acceptable_radius_miles": 1 // Defaults to 1 mile if not provided 
+    "acceptable_radius_miles": 1 // Defaults to 1 mile if not provided
   },
 
   "driver_match_details": {
@@ -89,12 +116,14 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 
   "sandbox_options": {
     "force_status": "verified"
-  }
+  },
+
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `requested_at` | string | Yes | ISO 8601 timestamp of when the request was created. Used for replay protection — requests older than 5 minutes are rejected. |
 | `callback_url` | string | Yes | Webhook URL — Arthur will POST results here when verification completes |
 | `reference_id` | string | No | Your internal identifier — returned in webhook for correlation |
 | `location_match_details` | object | No | Expected driver location. If provided, driver's GPS is checked against this point |
@@ -161,6 +190,7 @@ POST {your_callback_url}
 
 ```json
 {
+  "requested_at": "2026-03-23T14:30:05Z",
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "reference_id": "your-internal-id-123",
   "status": "verified",
@@ -194,13 +224,7 @@ POST {your_callback_url}
 
 #### Webhook Verification
 
-Webhooks include a provided api key for authenticity verification:
-
-```
-X-API-Key: our_api_key_here
-```
-
-TransportPro to provide api key to Arthur.
+Webhooks are signed using `transportpro_webhook_secret` (provided by TransportPro during onboarding). The payload includes `requested_at` for replay protection. See the [Authentication](#authentication) section for verification steps.
 
 
 #### Retry Policy
@@ -281,8 +305,8 @@ All errors follow this format:
 
 ## Open Questions
 
-1. **Authentication method** — We'd prefer to share a token issued by TransportPro for both requests to the arthur api and webhook requests back to TransportPro using HMAC signing to obscure it in traffic.
+1. **Authentication method** — We're proposing mutual HMAC-SHA256 request signing with replay protection (see Authentication section above). I know you mentioned JWT being standard for you — are you good with the HMAC approach, or would you prefer JWT bearer tokens? Happy to discuss tradeoffs. 
 2. **PDF delivery** — Do you want the report PDF inline in the webhook payload (base64), as a download URL, or both?
 3. **Link expiration** — Default is 48 hours. Would a shorter expiration window work for you and if so, how short?
 4. **Additional match fields** — We currently support the driver, carrier, and truck fields listed above. Are there any details you collect on your end that we could compare that you don't see here?
-5. **Webhook frequency** - Do you want a webhook on status change for a verification or only on final outcome? 
+5. **Webhook frequency** - Do you want a webhook on status change for a verification or only on final outcome?
