@@ -36,11 +36,6 @@ X-Arthur-Signature: sha256=<hmac_hex_digest>
 
 Compute `HMAC-SHA256` of the raw request body using the api key provided to us by TransportPro and compare to the signature header.
 
-> **Open question:** TransportPro mentioned using JWT. We're proposing HMAC-SHA256 request signing (above) — which does your team prefer? Options:
-> - **HMAC-SHA256 signing** — shared secret, signature on each request (spec as written)
-> - **JWT bearer token** — TransportPro issues a JWT, Arthur validates against your JWKS endpoint
-> - **Something else?**
-
 ---
 
 ## Endpoints
@@ -66,7 +61,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
   "location_match_details": {
     "lat": 41.8781,
     "lng": -87.6298,
-    "acceptable_radius_miles": 1 // Defaults to 1 mile if not provided, floats are accepted
+    "acceptable_radius_miles": 1 // Defaults to 1 mile if not provided 
   },
 
   "driver_match_details": {
@@ -105,7 +100,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 | `location_match_details` | object | No | Expected driver location. If provided, driver's GPS is checked against this point |
 | `location_match_details.lat` | number | Conditional | Latitude (-90 to 90) |
 | `location_match_details.lng` | number | Conditional | Longitude (-180 to 180) |
-| `location_match_details.acceptable_radius_miles` | number | No | Radius in miles. Default: `2` |
+| `location_match_details.acceptable_radius_miles` | number | No | Radius in miles. Default: `1` |
 | `driver_match_details` | object | No | Expected CDL details. Any subset of fields can be provided |
 | `driver_match_details.given_names` | string | No | First/middle name(s) as they appear on CDL |
 | `driver_match_details.family_name` | string | No | Last name as it appears on CDL |
@@ -186,7 +181,7 @@ POST {your_callback_url}
 | `report_pdf_base64` | string | Base64-encoded PDF report included directly in the webhook payload (no photos) |
 | `completed_at` | string | ISO 8601 timestamp of when processing finished |
 
-> **PDF delivery:** We can provide the report as a URL (`report_pdf_url`), as raw base64 data inline in the webhook (`report_pdf_base64`), or both. Let us know which you prefer — inline data means one fewer HTTP call but larger payloads.
+> **PDF delivery:** We can provide the report as a URL (`report_pdf_url`), as raw base64 data inline in the webhook (`report_pdf_base64`), or both. Let us know which you prefer: one fewer HTTP call but larger payloads.
 
 #### Status Values
 
@@ -286,7 +281,7 @@ All errors follow this format:
 
 ## Open Questions
 
-1. **Authentication method** — HMAC-SHA256 request signing or JWT bearer tokens? We'd prefer to share a token issued by Transpro and use HMAC signing to obscure it in traffic.
+1. **Authentication method** — We'd prefer to share a token issued by Transpro for both requests to the arthur api and webhook requests back to TransportPro using HMAC signing to obscure it in traffic.
 2. **PDF delivery** — Do you want the report PDF inline in the webhook payload (base64), as a download URL, or both?
 3. **Link expiration** — Default is 48 hours. Would a shorter expiration window work for you and if so, how short?
 4. **Additional match fields** — We currently support the driver, carrier, and truck fields listed above. Are there any details you collect on your end that we could compare that you don't see here?
