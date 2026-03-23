@@ -281,7 +281,8 @@ All errors follow this format:
 
 ## Open Questions
 
-1. **Authentication method** — We'd prefer to share a token issued by Transpro for both requests to the arthur api and webhook requests back to TransportPro using HMAC signing to obscure it in traffic.
+1. **Authentication method** — We'd prefer to share a token issued by TransportPro for both requests to the arthur api and webhook requests back to TransportPro using HMAC signing to obscure it in traffic.
 2. **PDF delivery** — Do you want the report PDF inline in the webhook payload (base64), as a download URL, or both?
 3. **Link expiration** — Default is 48 hours. Would a shorter expiration window work for you and if so, how short?
 4. **Additional match fields** — We currently support the driver, carrier, and truck fields listed above. Are there any details you collect on your end that we could compare that you don't see here?
+5. **Webhook frequency** - Do you want a webhook on status change for a verification or only on final outcome? 
