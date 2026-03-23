@@ -217,7 +217,7 @@ POST {your_callback_url}
 
 | Status | Meaning | Recommended TMS Action |
 |--------|---------|----------------------|
-| `verified` | All checks passed. Driver identity is confirmed. | Proceed with load assignment |
+| `verified` | All checks passed. | Proceed with load assignment |
 | `requires_review` | One or more checks flagged an issue. The driver has **not** been alerted. | Broker/ops should review the report before proceeding. Treat with caution. |
 
 > **Note:** The driver never sees pass/fail results. They always see a generic "Verification Underway" screen. If a verification comes back `requires_review`, the driver does not know — the broker can decide how to handle it.
