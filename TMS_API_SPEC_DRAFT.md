@@ -1,7 +1,6 @@
-# Arthur Verification API — TMS Integration Spec (DRAFT)
-
+# Arthur Verification API — TMS Integration Spec
 **Status:** Draft for review — not yet implemented
-**Last updated:** 2026-03-23
+**Last updated:** 2026-03-24
 
 ---
 
@@ -14,7 +13,7 @@ Arthur provides driver identity verification for freight brokerages. This API al
 1. **TMS creates a verification** via `POST /api/v1/verify` with optional match criteria
 2. Arthur returns a verification link — the TMS delivers this link to the driver (via their own messaging, dispatch app, etc.)
 3. The driver opens the link on their phone and completes identity verification
-4. Arthur processes the documents, runs checks against any match criteria provided, and fires a **webhook** to the TMS with the result
+4. Arthur processes the documents, runs checks against any match criteria provided, and fires a **webhook** to the TMS with the final result
 5. The TMS can also poll status or retrieve the report on demand
 
 ### Environments
@@ -28,38 +27,30 @@ Arthur provides driver identity verification for freight brokerages. This API al
 
 ## Authentication
 
-Both directions (TransportPro → Arthur and Arthur → TransportPro) use HMAC-SHA256 request signing. Each party has its own secret:
+Both directions (TMS → Arthur and Arthur → TMS) use API key authentication.
 
-| Direction | Secret | Issued by | Header |
-|-----------|--------|-----------|--------|
-| TransportPro → Arthur | `arthur_api_secret` | Arthur | `X-TransportPro-Signature` |
-| Arthur → TransportPro (webhooks) | `transportpro_webhook_secret` | TransportPro | `X-Arthur-Signature` |
-
-#### Signing a request
-
-1. Include a `requested_at` field in the JSON body — an ISO 8601 timestamp of when the request was created (e.g., `"2026-03-23T14:30:00Z"`).
-2. Compute `HMAC-SHA256` of the **raw request body** using the appropriate secret.
-3. Send the hex digest in the appropriate header:
-
-```
-# TransportPro → Arthur
-X-TransportPro-Signature: sha256=<hmac_hex_digest>
-
-# Arthur → TransportPro (webhooks)
-X-Arthur-Signature: sha256=<hmac_hex_digest>
-```
-
-#### Verifying a request
-
-1. Recompute the HMAC from the raw body using your secret.
-2. Compare to the signature header (use a constant-time comparison).
-3. Check that `requested_at` is within an acceptable window (we recommend **5 minutes**). Reject stale requests to prevent replay attacks.
+| Direction | Key | Issued by | Header |
+|-----------|-----|-----------|--------|
+| TMS → Arthur | API key | Arthur | `X-Api-Key` |
+| Arthur → TMS (webhooks) | Webhook secret | TMS | `X-Webhook-Secret` |
 
 #### Key exchange
 
 During onboarding:
-- Arthur issues `arthur_api_secret` to TransportPro (for requests to Arthur's API)
-- TransportPro issues `transportpro_webhook_secret` to Arthur (for webhook deliveries)
+- Arthur issues an API key to the TMS (for requests to Arthur's API)
+- The TMS issues a webhook secret to Arthur (for webhook deliveries)
+
+#### Authenticating requests to Arthur
+
+Include your API key in the `X-Api-Key` header on every request:
+
+```
+X-Api-Key: your_api_key_here
+```
+
+#### Verifying webhooks from Arthur
+
+Arthur includes the webhook secret you provided in the `X-Webhook-Secret` header. 
 
 ---
 
@@ -79,18 +70,13 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 
 ```json
 {
-  "requested_at": "2026-03-23T12:00:00Z",
-
   "callback_url": "https://your-tms.com/webhooks/arthur",
-
   "reference_id": "your-internal-id-123",
-
   "location_match_details": {
     "lat": 41.8781,
     "lng": -87.6298,
-    "acceptable_radius_miles": 1 // Defaults to 1 mile if not provided
+    "acceptable_radius_miles": 1
   },
-
   "driver_match_details": {
     "given_names": "JOHN",
     "family_name": "DOE",
@@ -101,12 +87,10 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
     "issue_date": "2022-01-01",
     "phone": "+13125551234"
   },
-
   "carrier_match_details": {
     "organization": "MIDWEST FREIGHT SOLUTIONS LLC",
     "address": "4200 W. Diversey Ave., Chicago, IL 60639"
   },
-
   "truck_match_details": {
     "make": "Kenworth",
     "model_year": "1998",
@@ -114,17 +98,14 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
     "plate_number": "AB 1234",
     "usdot_number": "1234567"
   },
-
   "sandbox_options": {
     "force_status": "verified"
-  },
-
+  }
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `requested_at` | string | Yes | ISO 8601 timestamp of when the request was created. Used for replay protection — requests older than 5 minutes are rejected. |
 | `callback_url` | string | Yes | Webhook URL — Arthur will POST results here when verification completes |
 | `reference_id` | string | No | Your internal identifier — returned in webhook for correlation |
 | `location_match_details` | object | No | Expected driver location. If provided, driver's GPS is checked against this point |
@@ -158,7 +139,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 {
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "verification_url": "https://verify.choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "expires_at": "2026-03-25T12:00:00Z",
+  "expires_at": "2026-03-24T00:00:00Z",
   "reference_id": "your-internal-id-123"
 }
 ```
@@ -167,7 +148,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 |-------|------|-------------|
 | `verification_id` | string | Arthur's unique ID for this verification |
 | `verification_url` | string | Link to send to the driver. Driver opens this on their phone to begin. |
-| `expires_at` | string | ISO 8601 timestamp. Link expires 48 hours after creation. |
+| `expires_at` | string | ISO 8601 timestamp. Link expires 12 hours after creation. |
 | `reference_id` | string | Echo of your reference ID, if provided |
 
 #### Sandbox Behavior
@@ -182,7 +163,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 
 ### 2. Webhook — Verification Result
 
-When verification completes, Arthur sends a `POST` to the `callback_url` you provided.
+When verification reaches a final outcome, Arthur sends a `POST` to the `callback_url` you provided. Webhooks are only sent on final outcomes (`verified` or `requires_review`), not on intermediate status changes.
 
 ```
 POST {your_callback_url}
@@ -192,13 +173,11 @@ POST {your_callback_url}
 
 ```json
 {
-  "requested_at": "2026-03-23T14:30:05Z",
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "reference_id": "your-internal-id-123",
   "status": "verified",
   "report_url": "https://verify.choosearthur.com/report/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "report_pdf_url": "https://api.choosearthur.com/api/v1/verifications/a1b2c3d4-e5f6-7890-abcd-ef1234567890/report.pdf",
-  "report_pdf_base64": "<base64-encoded PDF bytes>",
   "completed_at": "2026-03-23T14:30:00Z"
 }
 ```
@@ -210,10 +189,7 @@ POST {your_callback_url}
 | `status` | string | `"verified"` or `"requires_review"` (see below) |
 | `report_url` | string | Link to Arthur's hosted report page (includes photos for human review) |
 | `report_pdf_url` | string | Direct link to download the PDF report (authenticated, no photos) |
-| `report_pdf_base64` | string | Base64-encoded PDF report included directly in the webhook payload (no photos) |
 | `completed_at` | string | ISO 8601 timestamp of when processing finished |
-
-> **PDF delivery:** We can provide the report as a URL (`report_pdf_url`), as raw base64 data inline in the webhook (`report_pdf_base64`), or both. Let us know which you prefer: one fewer HTTP call but larger payloads.
 
 #### Status Values
 
@@ -226,8 +202,7 @@ POST {your_callback_url}
 
 #### Webhook Verification
 
-Webhooks are signed using `transportpro_webhook_secret` (provided by TransportPro during onboarding). The payload includes `requested_at` for replay protection. See the [Authentication](#authentication) section for verification steps.
-
+Webhooks include the `X-Webhook-Secret` header containing the secret you provided during onboarding. Compare the header value to your stored secret using a constant-time comparison to verify the request is from Arthur.
 
 #### Retry Policy
 
@@ -237,13 +212,13 @@ If your endpoint returns a non-2xx status, Arthur will retry:
 
 ---
 
-### 3. Get Verification Status (Optional Polling)
+### 3. Get Verification Status
 
 ```
 GET /api/v1/verifications/{verification_id}
 ```
 
-Returns current status. Can be used for polling if webhooks are not feasible, or as a fallback.
+Returns current status. Use this for polling if webhooks are not feasible, or as a fallback.
 
 #### Response — `200 OK`
 
@@ -265,7 +240,7 @@ Returns current status. Can be used for polling if webhooks are not feasible, or
 | `processing` | Documents submitted, checks are running |
 | `verified` | Complete — all checks passed |
 | `requires_review` | Complete — flagged for review |
-| `expired` | Driver did not complete within 48 hours |
+| `expired` | Driver did not complete within 12 hours |
 
 ---
 
@@ -302,13 +277,3 @@ All errors follow this format:
 | 422 | `validation_error` | Field validation failed (e.g., invalid lat/lng) |
 | 429 | `rate_limited` | Too many requests |
 | 500 | `internal_error` | Something went wrong on our end |
-
----
-
-## Open Questions
-
-1. **Authentication method** — We're proposing mutual HMAC-SHA256 request signing with replay protection (see Authentication section above). I know you mentioned JWT being standard for you — are you good with the HMAC approach, or would you prefer JWT bearer tokens? Happy to discuss tradeoffs. 
-2. **PDF delivery** — Do you want the report PDF inline in the webhook payload (base64), as a download URL, or both?
-3. **Link expiration** — Default is 48 hours. Would a shorter expiration window work for you and if so, how short?
-4. **Additional match fields** — We currently support the driver, carrier, and truck fields listed above. Are there any details you collect on your end that we could compare that you don't see here?
-5. **Webhook frequency** - Do you want a webhook on status change for a verification or only on final outcome?
