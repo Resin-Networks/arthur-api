@@ -263,9 +263,11 @@ All errors follow this format:
 
 ```json
 {
-  "error": {
-    "code": "rate_limited",
-    "message": "Human-readable description of what went wrong"
+  "detail": {
+    "error": {
+      "code": "rate_limited",
+      "message": "Human-readable description of what went wrong"
+    }
   }
 }
 ```
