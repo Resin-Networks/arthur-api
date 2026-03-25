@@ -10,7 +10,7 @@ Arthur provides driver identity verification for freight brokerages. This API al
 
 ### How it works
 
-1. **TMS creates a verification** via `POST /api/v1/verify` with optional match criteria
+1. TMS creates a verification via `POST /api/v1/verify` with optional match criteria
 2. Arthur returns a verification link — the TMS delivers this link to the driver (via their own messaging, dispatch app, etc.)
 3. The driver opens the link on their phone and completes identity verification
 4. Arthur processes the documents, runs checks against any match criteria provided, and fires a **webhook** to the TMS with the final result
