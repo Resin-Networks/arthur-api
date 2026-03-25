@@ -106,7 +106,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `callback_url` | string | Yes | Webhook URL — Arthur will POST results here when verification completes |
+| `callback_url` | string | Yes | Webhook URL — Arthur will POST results here when verification completes. Must be https. |
 | `reference_id` | string | No | Your internal identifier — returned in webhook for correlation |
 | `location_match_details` | object | No | Expected driver location. If provided, driver's GPS is checked against this point |
 | `location_match_details.lat` | number | Conditional | Latitude (-90 to 90) |
