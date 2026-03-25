@@ -186,7 +186,7 @@ POST {your_callback_url}
 | Field | Type | Description |
 |-------|------|-------------|
 | `verification_id` | string | Arthur's ID for this verification |
-| `reference_id` | string \| null | Your internal ID, if provided at creation |
+| `reference_id` | string \| omitted | Your internal ID, if provided at creation |
 | `status` | string | `"verified"` or `"requires_review"` (see below) |
 | `report_url` | string | Link to Arthur's hosted report page (includes photos for human review) |
 | `report_pdf_url` | string | Direct link to download the PDF report (authenticated, no photos) |
