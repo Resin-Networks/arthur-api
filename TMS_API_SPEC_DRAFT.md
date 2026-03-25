@@ -131,7 +131,8 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 | `truck_match_details.plate_number` | string | No | License plate number |
 | `truck_match_details.usdot_number` | string | No | USDOT number |
 | `sandbox_options` | object | No | **Sandbox only.** Ignored in production. |
-| `sandbox_options.force_status` | string | No | Force the verification outcome: `"verified"` or `"requires_review"`. Immediately completes the verification and triggers the webhook with boilerplate data. |
+| `sandbox_options.force_status` | string | No | Force the verification outcome: `"verified"` or `"requires_review"`. Immediately completes the verification and triggers the webhook with boilerplate data. When omitted, the verification stays pending until either the TMS polls GET /api/v1/verifications/{id} or a driver completes the flow. On first poll/completion, it auto-resolves as verified. This is useful for testing missed webhooks.
+ |
 
 #### Response — `201 Created`
 
