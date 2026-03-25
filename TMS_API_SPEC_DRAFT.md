@@ -107,7 +107,7 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `callback_url` | string | Yes | Webhook URL — Arthur will POST results here when verification completes. Must be https. |
-| `reference_id` | string | No | Your internal identifier — returned in webhook for correlation |
+| `reference_id` | string | No | Your internal identifier — returned in webhook for correlation. We fully pass through the reference ID and will not be doing any validation or deduplication on our side. |
 | `location_match_details` | object | No | Expected driver location. If provided, driver's GPS is checked against this point |
 | `location_match_details.lat` | number | Conditional | Latitude (-90 to 90) |
 | `location_match_details.lng` | number | Conditional | Longitude (-180 to 180) |
@@ -207,7 +207,7 @@ Webhooks include the `X-Webhook-Secret` header containing the secret you provide
 
 #### Retry Policy
 
-If your endpoint returns a non-2xx status, Arthur will retry:
+We will time a request to the callback url out after 10 seconds. If we receive a timeout or if your endpoint returns a non-2xx status, Arthur will retry:
 - 3 retries with exponential backoff (1 min, 5 min, 30 min)
 - After all retries fail, the result is still available via the GET endpoint
 
@@ -278,5 +278,5 @@ All errors follow this format:
 | 401 | `unauthorized` | Missing or invalid API key |
 | 404 | `not_found` | Verification ID does not exist |
 | 422 | `validation_error` | Field validation failed (e.g., invalid lat/lng) |
-| 429 | `rate_limited` | Too many requests |
+| 429 | `rate_limited` | Too many requests - currently not implemented. Will be added later. |
 | 500 | `internal_error` | Something went wrong on our end |
