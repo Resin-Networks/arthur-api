@@ -6,7 +6,7 @@
 
 ## Overview
 
-Arthur provides driver identity verification for freight brokerages. This API allows a TMS to programmatically initiate verifications, receive results via webhook, and review reports.
+Arthur provides driver identity verification for freight brokerages. This API allows a TMS to programmatically initiate verifications, receive results via webhook, and review report.
 
 ### How it works
 
@@ -227,7 +227,7 @@ Returns current status. Use this for polling if webhooks are not feasible, or as
   "status": "processing",
   "created_at": "2026-03-23T12:00:00Z",
   "completed_at": null,
-  "report_url": null,
+  "report_url": null
 }
 ```
 
