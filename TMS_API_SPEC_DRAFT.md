@@ -157,7 +157,6 @@ All `*_match_details` fields are optional. If provided, Arthur will match the dr
 - Webhook fires with boilerplate report data matching the forced status
 - No real document processing or photo analysis occurs
 - The `report_url` links to a sample report page
-- The `report_pdf_url` returns a sample PDF
 - Sandbox does not retain any submitted data beyond the session lifetime
 
 ---
@@ -178,7 +177,6 @@ POST {your_callback_url}
   "reference_id": "your-internal-id-123",
   "status": "verified",
   "report_url": "https://verify.choosearthur.com/report/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "report_pdf_url": "https://api.choosearthur.com/api/v1/verifications/a1b2c3d4-e5f6-7890-abcd-ef1234567890/report.pdf",
   "completed_at": "2026-03-23T14:30:00Z"
 }
 ```
@@ -189,7 +187,6 @@ POST {your_callback_url}
 | `reference_id` | string \| omitted | Your internal ID, if provided at creation |
 | `status` | string | `"verified"` or `"requires_review"` (see below) |
 | `report_url` | string | Link to Arthur's hosted report page (includes photos for human review) |
-| `report_pdf_url` | string | Direct link to download the PDF report (authenticated, no photos) |
 | `completed_at` | string | ISO 8601 timestamp of when processing finished |
 
 #### Status Values
@@ -231,7 +228,6 @@ Returns current status. Use this for polling if webhooks are not feasible, or as
   "created_at": "2026-03-23T12:00:00Z",
   "completed_at": null,
   "report_url": null,
-  "report_pdf_url": null
 }
 ```
 
@@ -242,18 +238,6 @@ Returns current status. Use this for polling if webhooks are not feasible, or as
 | `verified` | Complete — all checks passed |
 | `requires_review` | Complete — flagged for review |
 | `expired` | Driver did not complete within 12 hours |
-
----
-
-### 4. Get Report PDF
-
-```
-GET /api/v1/verifications/{verification_id}/report.pdf
-```
-
-Returns the verification report as a PDF. Requires API key authentication. The report includes check results and match details but **does not include photos** — photos are only viewable on the hosted report page (`report_url`).
-
-Returns `404` if the verification is not yet complete.
 
 ---
 
