@@ -113,7 +113,7 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 {
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "load_id": "your-internal-id-123",
-  "verification_url": "https://www.choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "expires_at": "2026-03-23T18:30:00Z",
   "status": "pending"
 }
