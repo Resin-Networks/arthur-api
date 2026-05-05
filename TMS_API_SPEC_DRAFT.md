@@ -115,7 +115,8 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
   "load_id": "your-internal-id-123",
   "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "expires_at": "2026-03-23T18:30:00Z",
-  "status": "pending"
+  "status": "pending",
+  "human_readable_status": "Pending"
 }
 ```
 
@@ -129,6 +130,7 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 | `verification_url` | string | Link to send to the driver. Driver opens this on their phone to begin. |
 | `expires_at` | string | ISO 8601 timestamp. Link expires 12 hours after creation. |
 | `status` | string | Current status. Usually `pending`; may be `verified` or `failed` if Arthur can resolve immediately. |
+| `human_readable_status` | string | Display-ready label for `status`, safe to render directly in your UI. See the Statuses table for the mapping. |
 
 ---
 
@@ -147,6 +149,7 @@ POST {your_callback_url}
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "load_id": "your-internal-id-123",
   "status": "verified",
+  "human_readable_status": "Verified",
   "updated_at": "2026-03-23T14:30:00Z"
 }
 ```
@@ -156,6 +159,7 @@ POST {your_callback_url}
 | `verification_id` | string | Arthur's ID for this verification. |
 | `load_id` | string | Echo of the `load_id` you supplied on the request. |
 | `status` | string | Current status. See the Statuses table below. |
+| `human_readable_status` | string | Display-ready label for `status`, safe to render directly in your UI. |
 | `updated_at` | string | ISO 8601 timestamp of when this status was set. |
 
 #### Delivery semantics
@@ -169,13 +173,14 @@ POST {your_callback_url}
 
 **Implementations should accept any string in the `status` field** and only switch on values they recognize, falling through unknown values as "still in progress."
 
-| Status | Meaning |
-|---|---|
-| `pending` | Verification created. Waiting for the driver to open the link and start the flow. |
-| `processing` | Driver is going through the verification process. |
-| `in_review` | Driver's verification is in review. |
-| `verified` | **Terminal.** All checks passed, load is good to be released. |
-| `failed` | **Terminal.** Identity could not be confirmed and the load should not be released to this driver. |
+| Status | `human_readable_status` | Meaning |
+|---|---|---|
+| `pending` | "Pending" | Verification created. Waiting for the driver to open the link and start the flow. |
+| `in_progress` | "In Progress" | Driver is going through the verification process. |
+| `processing` | "Processing" | The verification is being run. |
+| `in_review` | "In Review" | Driver's verification is in review. |
+| `verified` | "Verified" | **Terminal.** All checks passed, load is good to be released. |
+| `failed` | "Failed" | **Terminal.** Identity could not be confirmed and the load should not be released to this driver. |
 
 ---
 
@@ -194,6 +199,7 @@ Returns current status. Use this for polling if webhooks are not feasible, or as
   "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "load_id": "your-internal-id-123",
   "status": "verified",
+  "human_readable_status": "Verified",
   "created_at": "2026-03-23T14:00:00Z",
   "updated_at": "2026-03-23T14:30:00Z"
 }
@@ -204,6 +210,7 @@ Returns current status. Use this for polling if webhooks are not feasible, or as
 | `verification_id` | string | Arthur's ID for this verification. |
 | `load_id` | string | Echo of the `load_id` you supplied on the request. Always returned. |
 | `status` | string | Current status. See the Statuses table above. |
+| `human_readable_status` | string | Display-ready label for `status`, safe to render directly in your UI. |
 | `created_at` | string | ISO 8601 timestamp of when the verification was created. |
 | `updated_at` | string | ISO 8601 timestamp of when the status last changed. |
 
