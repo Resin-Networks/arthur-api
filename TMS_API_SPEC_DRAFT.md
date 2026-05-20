@@ -158,7 +158,7 @@ Returns current status. Poll this endpoint to track verification progress.
 
 #### Statuses
 
-**Implementations should accept any string in the `status` field** and only switch on values they recognize, falling through unknown values as "still in progress."
+**Implementations should accept any string in the `status` field**
 
 | Status | `human_readable_status` | Meaning |
 |---|---|---|
@@ -168,7 +168,7 @@ Returns current status. Poll this endpoint to track verification progress.
 | `in_review` | "In Review" | Driver's verification is in review. |
 | `verified` | "Verified" | **Terminal.** All checks passed, load is good to be released. |
 | `failed` | "Failed" | **Terminal.** Identity could not be confirmed and the load should not be released to this driver. |
-| `cancelled` | "Cancelled" | **Terminal.** Verification was cancelled by the TMS via `DELETE`. |
+| `cancelled` | "Cancelled" | **Terminal.** Verification was cancelled by the TMS via `DELETE` or for other reasons in the Arthur system. |
 
 ---
 
