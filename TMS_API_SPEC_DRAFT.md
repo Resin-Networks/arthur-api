@@ -1,6 +1,6 @@
 # Arthur Verification API — TMS Integration Spec
 **Status:** Draft for review
-**Last updated:** 2026-05-19
+**Last updated:** 2026-05-20
 
 ---
 
@@ -66,16 +66,23 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
   "location_match_details": {
     "lat": 41.8781,
     "lng": -87.6298,
-    "acceptable_radius_miles": 1
+    "acceptable_radius_miles": 1,
+    "city": "Chicago",
+    "state": "IL",
+    "pickup_window_start_at": "2026-05-20T08:00:00-05:00"
   },
   "driver_match_details": {
     "first_name": "JOHN",
     "last_name": "DOE",
     "phone": "+13125551234"
   },
-  "truck_match_details": {
-    "vin": "1XKYD49X0XR000001",
+  "carrier_match_details": {
+    "name": "Acme Trucking LLC",
+    "mc_number": "123456",
     "usdot_number": "1234567"
+  },
+  "truck_match_details": {
+    "vin": "1XKYD49X0XR000001"
   },
   "sandbox_options": {
     "force_status": "verified"
@@ -92,11 +99,16 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 | `location_match_details.lat` | number | no | Pickup latitude. Driver's GPS at submission must fall within `acceptable_radius_miles`. |
 | `location_match_details.lng` | number | no | Pickup longitude. |
 | `location_match_details.acceptable_radius_miles` | number | no | Allowed distance between pickup and the driver's reported location. Defaults to 1 mile. |
+| `location_match_details.city` | string | no | Pickup city. Used as a fallback / human-readable cross-check when lat/lng are not available. |
+| `location_match_details.state` | string | no | Pickup state (two-letter abbreviation). Used alongside `city`. |
+| `location_match_details.pickup_window_start_at` | string (ISO 8601) | no | Start of the pickup window. Used to validate that the driver's verification was completed at a plausible time relative to pickup. |
 | `driver_match_details.first_name` | string | yes | Driver first name. Used to make the verification text friendly for the driver. Compared to the parsed CDL. |
 | `driver_match_details.last_name` | string | no | Driver last name. Used to make the verification text friendly for the driver. Compared to the parsed CDL. |
 | `driver_match_details.phone` | string (E.164) | yes | Driver mobile phone. Required because Arthur runs a VoIP fraud check on this number. SMS is also sent here unless `suppress_driver_sms` is `true`. |
+| `carrier_match_details.name` | string | no | Carrier legal name. Compared to the parsed cab card. |
+| `carrier_match_details.mc_number` | string | no | Carrier MC number. Compared to the side of truck and parsed cab card. |
+| `carrier_match_details.usdot_number` | string | no | Carrier USDOT number. Compared to the side of truck and parsed cab card. |
 | `truck_match_details.vin` | string | no | Truck VIN. Compared to the side of truck and parsed cab card. |
-| `truck_match_details.usdot_number` | string | no | Carrier USDOT number. Compared to the side of truck and parsed cab card. |
 | `sandbox_options.force_status` | enum | no | Sandbox testing only. One of `pending`, `processing`, `verified`, `failed`. Resolves the verification deterministically without requiring driver photos. |
 
 #### Response — `200 OK`
@@ -158,7 +170,7 @@ Returns current status. Poll this endpoint to track verification progress.
 
 #### Statuses
 
-**Implementations should accept any string in the `status` field**
+**Implementations should accept any string in the `status` field** and only switch on values they recognize, falling through unknown values as "still in progress."
 
 | Status | `human_readable_status` | Meaning |
 |---|---|---|
@@ -168,7 +180,7 @@ Returns current status. Poll this endpoint to track verification progress.
 | `in_review` | "In Review" | Driver's verification is in review. |
 | `verified` | "Verified" | **Terminal.** All checks passed, load is good to be released. |
 | `failed` | "Failed" | **Terminal.** Identity could not be confirmed and the load should not be released to this driver. |
-| `cancelled` | "Cancelled" | **Terminal.** Verification was cancelled by the TMS via `DELETE` or for other reasons in the Arthur system. |
+| `cancelled` | "Cancelled" | **Terminal.** Verification was cancelled by the TMS via `DELETE`. |
 
 ---
 
