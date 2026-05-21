@@ -55,14 +55,13 @@ X-Api-Key: your_api_key_here
 POST /api/v1/verify
 ```
 
-Creates a verification session. By default, Arthur sends an SMS to the driver with the verification link. Set `suppress_driver_sms: true` to deliver the link yourself.
+Creates a verification session.
 
 #### Request Body
 
 ```json
 {
   "load_id": "your-internal-id-123",
-  "suppress_driver_sms": false,
   "location_match_details": {
     "lat": 41.8781,
     "lng": -87.6298,
@@ -94,7 +93,6 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `load_id` | string | yes | Your internal identifier for the load. Echoed back on every GET. |
-| `suppress_driver_sms` | boolean | no, default `false` | If `true`, Arthur will not text the driver. Use when your TMS delivers the link via its own channel. |
 | `location_match_details.lat` | number | no | Pickup latitude. Compared to the driver's GPS at submission. |
 | `location_match_details.lng` | number | no | Pickup longitude. |
 | `location_match_details.city` | string | no | Pickup city. Used when lat/lng are not available. |
@@ -102,7 +100,7 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 | `location_match_details.pickup_window_start_at` | string (ISO 8601) | no | Start of the pickup window. Used to time the text message sending window. |
 | `driver_match_details.first_name` | string | yes | Driver first name. Used to make the verification text friendly for the driver. Compared to the parsed CDL. |
 | `driver_match_details.last_name` | string | no | Driver last name. Used to make the verification text friendly for the driver. Compared to the parsed CDL. |
-| `driver_match_details.phone` | string (E.164) | yes | Driver mobile phone. Required because Arthur runs a VoIP fraud check on this number. SMS is also sent here unless `suppress_driver_sms` is `true`. |
+| `driver_match_details.phone` | string (E.164) | yes | Driver mobile phone. Required because Arthur runs a VoIP fraud check on this number. SMS is also sent here. |
 | `carrier_match_details.name` | string | no | Carrier legal name. Compared to driver provided data. |
 | `carrier_match_details.mc_number` | string | no | Carrier MC number. Compared to driver provided data. |
 | `carrier_match_details.usdot_number` | string | no | Carrier USDOT number. Compared to driver provided data. |
@@ -122,7 +120,7 @@ Creates a verification session. By default, Arthur sends an SMS to the driver wi
 }
 ```
 
-`verification_url` is the link the driver opens to complete verification. When `suppress_driver_sms` is `true`, deliver this URL to the driver through your own channel.
+`verification_url` is the link the driver opens to complete verification.
 `status` can be `verified` or `failed` on initial creation if Arthur's systems can identify them.
 
 | Field | Type | Description |
