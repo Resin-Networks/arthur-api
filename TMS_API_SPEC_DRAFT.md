@@ -80,6 +80,7 @@ Creates a verification session.
     "usdot_number": "1234567"
   },
   "truck_match_details": {
+    "equipment": "Straight Van", 
     "vin": "1XKYD49X0XR000001"
   },
   "sandbox_options": {
@@ -104,6 +105,7 @@ Creates a verification session.
 | `carrier_match_details.name` | string | no | Carrier legal name. Compared to driver provided data. |
 | `carrier_match_details.mc_number` | string | no | Carrier MC number. Compared to driver provided data. |
 | `carrier_match_details.usdot_number` | string | no | Carrier USDOT number. Compared to driver provided data. |
+| `truck_match_details.equipment` | string | no | Type of equipment used for the load. ex: "Straight Van", "Hot Shot". Compared to truck and used to validate license class. More values can easily be mapped in our system. |
 | `truck_match_details.vin` | string | no | Truck VIN. Compared to driver provided data. |
 | `sandbox_options.force_status` | enum | no | Sandbox testing only. One of `verified`, `failed`. Resolves the verification deterministically without requiring driver photos. |
 
