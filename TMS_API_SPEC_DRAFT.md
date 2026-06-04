@@ -1,6 +1,6 @@
 # Arthur Verification API — TMS Integration Spec
 **Status:** Draft for review
-**Last updated:** 2026-05-20
+**Last updated:** 2026-06-04
 
 ---
 
@@ -13,7 +13,7 @@ Arthur provides driver identity verification for freight brokerages. This API al
 1. TMS creates a verification via `POST /api/v1/verify` with optional match criteria. By default, drivers are texted a link to complete their verification.
 1. The driver opens the link on their phone and completes identity verification.
 1. Arthur processes the documents and runs checks against any match criteria provided.
-1. The TMS polls status on demand via `GET /api/v1/verifications/{id}`.
+1. The TMS tracks progress either by polling a single verification via `GET /api/v1/verifications/{id}`, or by polling the change feed via `GET /api/v1/verifications/changes` to pick up status movement across all of its verifications at once.
 1. If the verification is no longer needed (e.g. load cancelled), the TMS can cancel it via `DELETE /api/v1/verifications/{id}`.
 
 ### Environments
@@ -152,6 +152,8 @@ Returns current status. Poll this endpoint to track verification progress.
   "load_id": "your-internal-id-123",
   "status": "verified",
   "human_readable_status": "Verified",
+  "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "expires_at": "2026-03-23T18:30:00Z",
   "created_at": "2026-03-23T14:00:00Z",
   "updated_at": "2026-03-23T14:30:00Z"
 }
@@ -163,6 +165,8 @@ Returns current status. Poll this endpoint to track verification progress.
 | `load_id` | string | Echo of the `load_id` you supplied on the request. Always returned. |
 | `status` | string | Current status. See the Statuses table below. |
 | `human_readable_status` | string | Display-ready label for `status`, safe to render directly in your UI. |
+| `verification_url` | string | Link the driver opens to complete verification. Same value returned at creation. |
+| `expires_at` | string | ISO 8601 timestamp. Link expires 12 hours after creation. |
 | `created_at` | string | ISO 8601 timestamp of when the verification was created. |
 | `updated_at` | string | ISO 8601 timestamp of when the status last changed. |
 
@@ -182,7 +186,55 @@ Returns current status. Poll this endpoint to track verification progress.
 
 ---
 
-### 3. Cancel Verification
+### 3. Get Verification Status Changes
+
+```
+GET /api/v1/verifications/changes?since={timestamp}&limit={limit}
+```
+
+Returns the verifications whose status changed after `since`, so a TMS can poll a single feed for status movement across all of its verifications instead of polling each one by id. Scoped to the calling TMS — you only ever see your own verifications.
+
+#### Query Parameters
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `since` | string (ISO 8601) | yes | Exclusive lower bound — only changes strictly after this timestamp are returned. On your first call, pass the time you last synced (or any time in the past). |
+| `limit` | integer | no | Maximum number of changes to return in one page, oldest change first. Defaults to 200. |
+
+#### Response — `200 OK`
+
+```json
+{
+  "changes": [
+    {
+      "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "load_id": "your-internal-id-123",
+      "status": "verified",
+      "human_readable_status": "Verified",
+      "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "expires_at": "2026-03-23T18:30:00Z",
+      "created_at": "2026-03-23T14:00:00Z",
+      "updated_at": "2026-03-23T14:30:00Z"
+    }
+  ],
+  "cursor": "2026-03-23T14:30:00Z"
+}
+```
+
+Each entry in `changes` is the same object returned by **Get Verification Status**.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `changes` | array | Verifications that changed since `since`, oldest change first. Each entry has the same fields as the Get Verification Status response. |
+| `cursor` | string \| null | ISO 8601 timestamp — the latest change in this page. Hand it back as the next request's `since` to page forward. `null` when the page is empty; keep your previous `since` and poll again later. |
+
+#### Polling
+
+Start with `since` set to your last sync time, then hand the returned `cursor` back as the next request's `since`. Each status change is returned once. When there's no movement the page is empty and `cursor` is `null`, so keep your prior `since` until the next poll.
+
+---
+
+### 4. Cancel Verification
 
 ```
 DELETE /api/v1/verifications/{verification_id}
@@ -200,6 +252,8 @@ Cancelling a verification that is already in a terminal state (`verified`, `fail
   "load_id": "your-internal-id-123",
   "status": "cancelled",
   "human_readable_status": "Cancelled",
+  "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "expires_at": "2026-03-23T18:30:00Z",
   "created_at": "2026-03-23T14:00:00Z",
   "updated_at": "2026-03-23T14:30:00Z"
 }
@@ -211,6 +265,8 @@ Cancelling a verification that is already in a terminal state (`verified`, `fail
 | `load_id` | string | Echo of the `load_id` you supplied on the request. Always returned. |
 | `status` | string | Current status. Will be `cancelled` unless the verification was already in a terminal state. |
 | `human_readable_status` | string | Display-ready label for `status`, safe to render directly in your UI. |
+| `verification_url` | string | Link the driver opens to complete verification. Same value returned at creation. |
+| `expires_at` | string | ISO 8601 timestamp. Link expires 12 hours after creation. |
 | `created_at` | string | ISO 8601 timestamp of when the verification was created. |
 | `updated_at` | string | ISO 8601 timestamp of when the status last changed. |
 
