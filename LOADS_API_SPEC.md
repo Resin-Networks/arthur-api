@@ -56,10 +56,10 @@ X-Api-Key: your_api_key_here
 | **POST** | `/api/v1/loads` | [Create a load](#create-a-load) — declares it and texts its drivers |
 | **PUT** | `/api/v1/loads/{load_id}` | [Update a load](#update-a-load) — declares any changes |
 | **GET** | `/api/v1/loads/{load_id}` | [Get a load](#get-a-load) — current state of every verification on it |
-| **GET** | `/api/v1/verifications/changes` | [Get status changes](#get-status-changes) — one feed across all your loads |
+| **GET** | `/api/v1/loads/changes` | [Get status changes](#get-status-changes) — one feed across all your loads |
 | **DELETE** | `/api/v1/loads/{load_id}` | [Cancel a load](#cancel-a-load) — closes every verification on it |
 
-`POST` and `PUT` take the same body, and all four load endpoints return the same response: [the load body](#the-load-body) and [the load response](#the-load-response).
+`POST` and `PUT` take the same body, and every endpoint returns the same load object — the change feed returns a page of them: [the load body](#the-load-body) and [the load response](#the-load-response).
 
 ---
 
@@ -110,17 +110,17 @@ Returns the load's current state and where each of its verifications stands. Pol
 ### Get status changes
 
 ```
-GET /api/v1/verifications/changes?since={timestamp}&limit={limit}
+GET /api/v1/loads/changes?since={timestamp}&limit={limit}
 ```
 
-Returns the verifications whose status changed after `since`, so a TMS can poll a single feed for movement across all of its loads instead of polling each load by id. Scoped to the calling organization — you only ever see your own.
+Returns the loads whose verifications moved after `since`, so a TMS can poll a single feed for movement across all of its loads instead of polling each one by id. Scoped to the calling organization — you only ever see your own.
 
 #### Query parameters
 
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `since` | string (ISO 8601) | yes | Exclusive lower bound — only changes strictly after this timestamp are returned. On your first call, pass the time you last synced (or any time in the past). |
-| `limit` | integer | no | Maximum number of changes to return in one page, oldest change first. Defaults to 200. |
+| `limit` | integer | no | Maximum number of status changes to read in one page, oldest change first. Defaults to 200. Several changes can belong to one load, so a page may return fewer loads than this. |
 
 #### Response — `200 OK`
 
@@ -128,14 +128,22 @@ Returns the verifications whose status changed after `since`, so a TMS can poll 
 {
   "changes": [
     {
-      "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "load_id": "your-internal-id-123",
-      "status": "verified",
-      "human_readable_status": "Verified",
-      "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "expires_at": "2026-05-20T06:30:00+00:00",
-      "created_at": "2026-05-19T18:30:00+00:00",
-      "updated_at": "2026-05-19T19:02:00+00:00"
+      "load_id": "3f0c1d8e-9b21-4a77-b0e6-2a1f5c7d9e42",
+      "load_number": "your-internal-id-123",
+      "verifications": [
+        {
+          "verification_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "verification_url": "https://choosearthur.com/v/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "driver_name": "JOHN DOE",
+          "driver_phone": "+13125551234",
+          "expires_at": "2026-05-20T06:30:00+00:00",
+          "created_at": "2026-05-19T18:30:00+00:00",
+          "updated_at": "2026-05-19T19:02:00+00:00",
+          "first_texted_at": "2026-05-19T18:31:00+00:00",
+          "status": "verified",
+          "human_readable_status": "Verified"
+        }
+      ]
     }
   ],
   "cursor": "2026-05-19T19:02:00+00:00"
@@ -144,12 +152,10 @@ Returns the verifications whose status changed after `since`, so a TMS can poll 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `changes` | array | Verifications that changed since `since`, oldest change first. |
+| `changes` | array | The loads that moved since `since`, oldest change first. Each entry is [the load response](#the-load-response), carrying the load's full current state — not just the verification that moved. |
 | `cursor` | string \| null | ISO 8601 timestamp — the latest change in this page. Hand it back as the next request's `since` to page forward. `null` when the page is empty; keep your previous `since` and poll again later. |
 
-> **Note the `load_id` field.** On this endpoint it carries the `load_number` you declared, not the `load_id` the load endpoints return. Key your handler on `verification_id`, or match it against your own load number.
-
-A team load's two drivers appear as two separate entries sharing one `load_id`, and move independently.
+A team load appears once, with both drivers in its `verifications` array. A load whose two drivers both moved is one entry, not two.
 
 #### Polling
 
@@ -395,7 +401,7 @@ Names and phones are paired by position: the first name gets the first phone. Wh
 
 ### Working with a team load
 
-- **Track both.** Both verifications are on the load's `verifications` array; poll the load, or use the change feed, where both appear as separate entries.
+- **Track both.** Both verifications are on the load's `verifications` array, whether you poll the load or read the change feed.
 - **Release on both.** The load is good to release only when every verification on it is `verified`. Arthur does not roll them up into a single load-level status.
 - **Cancel once.** `DELETE /api/v1/loads/{load_id}` closes every verification on the load, both drivers included.
 
