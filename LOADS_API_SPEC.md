@@ -54,12 +54,12 @@ X-Api-Key: your_api_key_here
 | | Endpoint | What it does |
 |---|---|---|
 | **POST** | `/api/v1/loads` | [Create a load](#create-a-load) — declares it and texts its drivers |
-| **PUT** | `/api/v1/loads/{load_id}` | [Update a load](#update-a-load) — re-declares what changed |
+| **PUT** | `/api/v1/loads/{load_id}` | [Update a load](#update-a-load) — declares any changes |
 | **GET** | `/api/v1/loads/{load_id}` | [Get a load](#get-a-load) — current state of every verification on it |
 | **GET** | `/api/v1/verifications/changes` | [Get status changes](#get-status-changes) — one feed across all your loads |
 | **DELETE** | `/api/v1/loads/{load_id}` | [Cancel a load](#cancel-a-load) — closes every verification on it |
 
-`POST` and `PUT` take the same body, and all four load endpoints return the same response, so both shapes are documented once: [the load body](#the-load-body) and [the load response](#the-load-response).
+`POST` and `PUT` take the same body, and all four load endpoints return the same response: [the load body](#the-load-body) and [the load response](#the-load-response).
 
 ---
 
@@ -71,9 +71,9 @@ X-Api-Key: your_api_key_here
 POST /api/v1/loads
 ```
 
-Declares a load and creates the records its plan calls for — a verification per driver.
+Declares a load and creates a verification per driver.
 
-Idempotent on (your organization, `load_number`). A caller that lost its `load_id`, or that retries, gets back the load it already has rather than a second one and a second text.
+Idempotent on `load_number`. A caller that lost its `load_id`, or that retries, gets back the load it already has rather than a second one and a second text.
 
 **Body:** [the load body](#the-load-body) · **Returns:** [the load response](#the-load-response)
 
@@ -85,13 +85,11 @@ Idempotent on (your organization, `load_number`). A caller that lost its `load_i
 PUT /api/v1/loads/{load_id}
 ```
 
-Re-declares the load's current state. Whatever moved is applied; whatever didn't is left alone.
+Re-declares the load's current state. Whatever has changed is applied; whatever didn't is left alone.
 
 This is the same upsert `POST` runs, so a record-triggered flow can fire on every save. An empty or omitted field means "not declared" and never overwrites what the load already holds.
 
-A body naming a different `load_number` is rejected with `422` — the number is identity, and silently retargeting another load would be worse than an error.
-
-Drivers are added, not swapped, unless you set `drivers_complete` — see [The roster](#the-roster).
+Drivers are added, not swapped, unless you set `drivers_complete`. This can be useful if you intend to have verifications fire automatically when dispatch info changes. You can just always send the current dispatch information without worrying about cancelling prior verifications. More info: [The roster](#the-roster).
 
 **Body:** [the load body](#the-load-body) · **Returns:** [the load response](#the-load-response)
 
@@ -165,7 +163,7 @@ Start with `since` set to your last sync time, then hand the returned `cursor` b
 DELETE /api/v1/loads/{load_id}
 ```
 
-Cancels the load by closing every verification on it — a team load's two drivers included. Use this when the load is cancelled or the verifications are otherwise no longer needed. Each driver's link is invalidated, no further checks will run, and any text Arthur had scheduled won't be sent.
+Cancels the load by closing every verification on it. A team load's two drivers included. Use this when the load is cancelled or the verifications are otherwise no longer needed. Each driver's link is invalidated, no further checks will run, and any text Arthur had scheduled won't be sent.
 
 **Returns:** [the load response](#the-load-response), with `verifications` empty — the array lists live verifications, and cancelling closed them all.
 
@@ -345,17 +343,17 @@ Returned by create, update, get and cancel.
 
 `status` can be `verified` on creation if Arthur already recognizes this driver from a recent verification for your organization — in that case no text is sent and the load is good to release immediately.
 
-**Verification ids are stable across updates.** A `PUT` that changes nothing about a driver returns the same `verification_id`, so a new id appearing is not how you tell a text went out — read `first_texted_at` for that.
+**Verification ids are stable across updates.** A `PUT` that changes nothing about a driver returns the same `verification_id`. Read `first_texted_at` if you want to track how long we have been waiting for the driver to respond. 
 
 ---
 
 ## The roster
 
-`drivers` is **additive by default.** A call naming one driver is adding them to the load, not saying the others have gone — so a team load assembled over two calls keeps both, and a mis-parsed driver field never cancels a driver mid-upload. A phone already on the load is re-declared in place, so a corrected name lands without raising a second verification.
+`drivers` is **additive by default.** A call naming one driver is adding them to the load. If you want verifications to be manually requested this allows multiple verifications to be appended to the same load. Driver name changes won't result in a new verification or new text to the driver but correct the name for whatever is associated with the phone number. 
 
-Set **`drivers_complete: true`** to say outright that `drivers` is the load's whole roster. Then any live verification for a driver left off it is cancelled. A verification that already reached a terminal state is never cancelled this way. `drivers_complete` with an empty `drivers` array is read as a mistake, not as an instruction to empty the roster.
+Set **`drivers_complete: true`** to say outright that `drivers` is the load's whole roster. Then any live verification for a driver left off it is cancelled. A verification that already reached a terminal state is never cancelled this way. `drivers_complete` with an empty `drivers` array won't cancel outstanding verifications and is treated as a mistake. 
 
-Use `drivers_complete` when your TMS record is authoritative about who is on the load — which is the usual case for a driver-swap flow. Leave it off when your integration sends partial declarations from more than one place.
+Use `drivers_complete` when your TMS record is authoritative about who is on the load, usually if you are firing automatically off of dispatch information changes. 
 
 ---
 
@@ -363,11 +361,9 @@ Use `drivers_complete` when your TMS record is authoritative about who is on the
 
 A load with two drivers creates **one verification per driver**. Each driver is texted their own link, completes their own identity check, and resolves to their own status. All of them are listed in the load's `verifications` array.
 
-**The field you send is what says the load has two drivers.** No other value is read to decide that — an edit to `equipment_type` can't change the driver count.
-
 ### Two structured drivers
 
-The clearest shape, and the one to prefer when your TMS carries the drivers separately:
+The cleanest shape if possible with your setup. 
 
 ```json
 {
@@ -381,7 +377,7 @@ The clearest shape, and the one to prefer when your TMS carries the drivers sepa
 
 ### One crammed field
 
-TMS systems often carry both team drivers in the same fields, slash-separated. Send them as `names_raw`/`phones_raw` and Arthur splits them:
+We can also handle drivers sent in the same field. Send them as `names_raw`/`phones_raw` and Arthur will split them:
 
 ```json
 {
@@ -395,7 +391,7 @@ TMS systems often carry both team drivers in the same fields, slash-separated. S
 }
 ```
 
-Names and phones are paired by position: the first name gets the first phone. When the counts don't match, Arthur can't pair them safely and declares the raw fields as a **single** driver rather than guessing. Put both full names in `names_raw` — splitting them across name fields produces a count mismatch.
+Names and phones are paired by position: the first name gets the first phone. When the counts don't match, Arthur can't pair them safely and declares the raw fields as a **single** driver rather than guessing.
 
 ### Working with a team load
 
@@ -434,15 +430,6 @@ The link itself is not hard-cut at that timestamp — a driver who is running la
 
 - A declared `gross_weight_lbs` outranks everything: under 26,001 lbs the load accepts any license class, at or above it a CDL is required.
 - With no gross declared, a **non-CDL equipment** value — `"Straight Van"`, `"Straight Truck 26'"`, `"Sprinter/Cargo Van"`, `"Hot Shot"`, `"Partial Van"`, `"Flatbed Hotshot"` and their variants — accepts any license class, unless `load_weight_lbs` is 11,000 lbs or more, which puts it back on a CDL.
-- Every other equipment value, and any value Arthur doesn't recognize, gates on a CDL.
-
-Values are matched case-insensitively against Arthur's catalog. Send the cell your TMS holds verbatim; new values are easy to map on our side.
-
----
-
-## Proof of delivery
-
-A load's plan can carry more than verification. Where your organization is configured for proof of delivery, Arthur raises the POD ask once every verification on the load has cleared, driven by the delivery stop's window. The load response reports verifications only today; POD gets its own array when it gets a surface here.
 
 ---
 
