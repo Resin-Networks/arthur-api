@@ -1,5 +1,5 @@
 # Arthur Loads API — TMS Integration Spec
-**Status:** Draft for review
+**Status:** Live
 **Last updated:** 2026-10-02
 
 ---
@@ -60,6 +60,23 @@ X-Api-Key: your_api_key_here
 | **DELETE** | `/api/v1/loads/{load_id}` | [Cancel a load](#cancel-a-load) — closes every verification on it |
 
 `POST` and `PUT` take the same body, and every endpoint returns the same load object — the change feed returns a page of them: [the load body](#the-load-body) and [the load response](#the-load-response).
+
+---
+
+## Recommended UX
+
+### On the load record page 
+
+Include the current status of the verification as well as a link to the load in the Arthur dashboard. `https://<your-org>.choosearthur.com/?q={load_number}`
+
+<img width="1920" height="1080" alt="Arthur TMS Mockups" src="https://github.com/user-attachments/assets/3e03ff6a-800e-4a13-b9e0-19140f49feb7" />
+
+### On load list pages 
+
+Include the current status of the verification. Some customers find it helpful to color code based on how close to pickup the load is if the verification has not been completed. 
+
+<img width="1920" height="1080" alt="Arthur TMS Mockups" src="https://github.com/user-attachments/assets/03fcef0c-df07-4398-a27a-cf331325bd14" />
+
 
 ---
 
